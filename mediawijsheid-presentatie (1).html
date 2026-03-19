@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mediawijsheid & Live Quiz</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#08090e;--s1:#0f1119;--s2:#151822;--s3:#1c202e;
+  --bd:rgba(255,255,255,0.06);--bd2:rgba(255,255,255,0.11);
+  --cy:#00e5ff;--pu:#a855f7;--re:#ff3b6b;--ye:#f5c518;--gr:#22c55e;--or:#fb923c;
+  --tx:#edf0fa;--mu:rgba(237,240,250,0.48);--di:rgba(237,240,250,0.22);
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--tx);font-family:"Inter",sans-serif;-webkit-font-smoothing:antialiased}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:500;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");opacity:.5}
+#prog{position:fixed;top:0;left:0;height:2px;background:var(--cy);z-index:600;transition:width .5s cubic-bezier(.4,0,.2,1);box-shadow:0 0 10px var(--cy),0 0 20px rgba(0,229,255,.3)}
+#nav{position:fixed;top:0;left:0;right:0;z-index:400;display:flex;align-items:center;justify-content:space-between;padding:18px 44px;background:linear-gradient(to bottom,rgba(8,9,14,.97),transparent)}
+.nav-logo{font-family:"Bebas Neue",sans-serif;font-size:1rem;letter-spacing:4px;color:var(--mu)}
+.nav-logo em{color:var(--cy);font-style:normal}
+.nav-r{display:flex;align-items:center;gap:20px}
+.nav-ctr{font-family:"DM Mono",monospace;font-size:.7rem;color:var(--di);letter-spacing:1px}
+.nav-ctr strong{color:var(--cy)}
+.nav-badge{font-family:"DM Mono",monospace;font-size:.6rem;letter-spacing:2px;text-transform:uppercase;padding:4px 12px;border-radius:999px;border:1px solid var(--bd2);color:var(--mu);transition:all .4s}
+.nav-badge.qm{border-color:rgba(168,85,247,.5);color:var(--pu);background:rgba(168,85,247,.08)}
+#deck{width:100%;height:100%;position:relative}
+.slide{position:absolute;inset:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;padding:100px 72px 80px;opacity:0;pointer-events:none;transition:opacity .55s cubic-bezier(.4,0,.2,1),transform .55s cubic-bezier(.4,0,.2,1);transform:translateY(28px);overflow:hidden}
+.slide.active{opacity:1;pointer-events:all;transform:translateY(0)}
+.slide.exit{opacity:0;transform:translateY(-28px)}
+.sbg{position:absolute;inset:0;z-index:0;pointer-events:none}
+.gbg::after{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);background-size:64px 64px}
+.glow{position:absolute;border-radius:50%;filter:blur(130px);opacity:.12}
+.sc{position:relative;z-index:1;width:100%;max-width:1120px}
+@keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+.slide.active .sc>*{animation:fadeUp .5s cubic-bezier(.4,0,.2,1) both}
+.slide.active .sc>*:nth-child(1){animation-delay:.04s}.slide.active .sc>*:nth-child(2){animation-delay:.1s}
+.slide.active .sc>*:nth-child(3){animation-delay:.17s}.slide.active .sc>*:nth-child(4){animation-delay:.24s}
+.slide.active .sc>*:nth-child(5){animation-delay:.31s}.slide.active .sc>*:nth-child(6){animation-delay:.38s}
+.stag{font-family:"DM Mono",monospace;font-size:.62rem;letter-spacing:3px;text-transform:uppercase;color:var(--cy);display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.stag::before{content:"";width:22px;height:1px;background:var(--cy)}
+.stag.pu{color:var(--pu)}.stag.pu::before{background:var(--pu)}
+.stag.re{color:var(--re)}.stag.re::before{background:var(--re)}
+.stag.ye{color:var(--ye)}.stag.ye::before{background:var(--ye)}
+.stag.gr{color:var(--gr)}.stag.gr::before{background:var(--gr)}
+.big{font-family:"Bebas Neue",sans-serif;font-size:clamp(4rem,8.5vw,7.5rem);line-height:.93;letter-spacing:1px}
+.cy{color:var(--cy);text-shadow:0 0 40px rgba(0,229,255,.4)}.pu{color:var(--pu)}.re{color:var(--re)}.ye{color:var(--ye)}.gr{color:var(--gr)}.di{color:var(--di)}
+.sub{font-size:clamp(.95rem,1.7vw,1.2rem);font-weight:300;line-height:1.75;color:var(--mu);max-width:600px;margin:22px 0 28px}
+.divl{width:48px;height:2px;background:var(--cy);margin:20px 0}
+.cards{display:grid;gap:14px;width:100%}.c2{grid-template-columns:1fr 1fr}.c3{grid-template-columns:1fr 1fr 1fr}
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:13px;padding:24px;position:relative;overflow:hidden;transition:border-color .3s,transform .25s}
+.card:hover{transform:translateY(-2px)}.card::after{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--ca,var(--cy));opacity:0;transition:opacity .3s}.card:hover::after{opacity:1}
+.ci{font-size:1.7rem;margin-bottom:13px;display:block}.ct{font-size:.78rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--tx);margin-bottom:9px}.cb{font-size:.88rem;color:var(--mu);line-height:1.65}
+.steps{display:flex;flex-direction:column;gap:13px}
+.step{display:flex;align-items:flex-start;gap:18px;padding:18px 22px;background:var(--s1);border:1px solid var(--bd);border-radius:10px;transition:border-color .3s}
+.step:hover{border-color:var(--bd2)}.sn{font-family:"Bebas Neue",sans-serif;font-size:2.2rem;line-height:1;color:var(--di);min-width:38px;transition:color .3s}.step:hover .sn{color:var(--cy)}
+.st{font-size:.77rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--tx);margin-bottom:3px}.sd{font-size:.87rem;color:var(--mu);line-height:1.55}
+.quote{border-left:3px solid var(--cy);padding:18px 24px;background:var(--s1);border-radius:0 10px 10px 0}
+.qt{font-size:1.2rem;font-style:italic;color:var(--tx);font-weight:300;line-height:1.6;margin-bottom:10px}.qa{font-family:"DM Mono",monospace;font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--di)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.stat{background:var(--s1);border:1px solid var(--bd);border-radius:12px;padding:24px 20px;text-align:center}
+.stn{font-family:"Bebas Neue",sans-serif;font-size:3.5rem;color:var(--cy);line-height:1;margin-bottom:6px}.stl{font-size:.82rem;color:var(--mu);line-height:1.4}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:44px;align-items:start;width:100%}
+.tl{padding-left:22px;position:relative}.tl::before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:1px;background:var(--bd)}
+.tli{position:relative;padding:0 0 22px 22px}.tli::before{content:"";position:absolute;left:-4px;top:8px;width:9px;height:9px;border-radius:50%;background:var(--cy);box-shadow:0 0 0 3px rgba(0,229,255,.18)}
+.tll{font-family:"DM Mono",monospace;font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--cy);margin-bottom:3px}.tlt{font-size:.92rem;font-weight:600;color:var(--tx);margin-bottom:3px}.tld{font-size:.85rem;color:var(--mu);line-height:1.5}
+.pills{display:flex;flex-wrap:wrap;gap:9px}
+.pill{padding:7px 16px;border-radius:999px;border:1px solid var(--bd);font-size:.78rem;font-weight:600;color:var(--mu);background:var(--s1);transition:all .25s;cursor:default}
+.pill:hover,.pill.on{border-color:var(--cy);color:var(--cy);background:rgba(0,229,255,.07)}
+.arch{background:var(--s1);border:1px solid var(--bd);border-radius:13px;padding:24px;position:relative;overflow:hidden}
+.arch::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(168,85,247,.07),transparent 60%);pointer-events:none}
+.archt{font-family:"DM Mono",monospace;font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--di);margin-bottom:20px;text-align:center}
+.archf{display:flex;flex-direction:column;gap:10px}.archr{display:flex;gap:8px;justify-content:center}
+.ab{padding:9px 14px;border-radius:8px;font-size:.72rem;font-weight:500;text-align:center;flex:1;max-width:130px}
+.ab.ai{background:rgba(0,229,255,.07);border:1px solid rgba(0,229,255,.22);color:var(--cy)}
+.ab.ap{background:rgba(168,85,247,.07);border:1px solid rgba(168,85,247,.22);color:var(--pu)}
+.ab.ao{background:rgba(255,59,107,.07);border:1px solid rgba(255,59,107,.22);color:var(--re)}
+.ab.ag{background:rgba(245,197,24,.07);border:1px solid rgba(245,197,24,.22);color:var(--ye);max-width:220px}
+.archa{text-align:center;color:var(--di);font-size:.75rem}
+.dlist{display:flex;flex-direction:column;gap:11px}
+.di2{display:flex;align-items:center;gap:14px;padding:13px 17px;background:var(--s1);border:1px solid var(--bd);border-radius:9px;transition:border-color .3s}
+.di2:hover{border-color:rgba(34,197,94,.3)}.di2ico{width:34px;height:34px;border-radius:8px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.2);display:flex;align-items:center;justify-content:center;font-size:.95rem;flex-shrink:0}
+.di2t{font-size:.8rem;font-weight:600;color:var(--tx);margin-bottom:2px}.di2s{font-size:.8rem;color:var(--mu);line-height:1.45}
+.bchart{background:var(--s1);border:1px solid var(--bd);border-radius:13px;padding:24px}
+.bct{font-family:"DM Mono",monospace;font-size:.58rem;letter-spacing:2px;text-transform:uppercase;color:var(--di);margin-bottom:20px}
+.br2{display:flex;align-items:center;gap:10px;margin-bottom:14px}.brl{font-size:.75rem;color:var(--mu);min-width:118px}
+.brt{flex:1;height:8px;background:var(--s3);border-radius:4px;overflow:hidden}
+.brf{height:100%;border-radius:4px;animation:barG 1.4s cubic-bezier(.4,0,.2,1) both;animation-delay:.5s}
+@keyframes barG{from{width:0}}
+.brp{font-family:"DM Mono",monospace;font-size:.68rem;min-width:34px;text-align:right}
+#controls{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;z-index:400;transition:opacity .4s}
+#controls.h{opacity:0;pointer-events:none}
+.cbtn{width:42px;height:42px;border-radius:50%;border:1px solid var(--bd);background:rgba(15,17,25,.8);color:var(--mu);font-size:.95rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .22s;backdrop-filter:blur(8px)}
+.cbtn:hover{border-color:var(--cy);color:var(--cy)}.cbtn:disabled{opacity:.3;cursor:default}
+.dnav-wrap{display:flex;gap:5px;align-items:center}
+.dn{width:5px;height:5px;border-radius:50%;background:var(--di);cursor:pointer;transition:all .3s}
+.dn.on{background:var(--cy);width:16px;border-radius:3px}.dn.qd{background:rgba(168,85,247,.4)}.dn.qd.on{background:var(--pu);width:16px}
+#kh{position:fixed;bottom:32px;right:40px;font-family:"DM Mono",monospace;font-size:.58rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--di);display:flex;align-items:center;gap:6px;z-index:400;transition:opacity 1.2s}
+.kk{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--di);border-radius:4px;padding:2px 6px;font-size:.58rem}
+/* ── QUIZ SLIDE ── */
+#s10{padding:88px 44px 68px;align-items:center;justify-content:flex-start}
+#qz{position:relative;z-index:1;width:100%;max-width:1100px;margin:0 auto;display:flex;flex-direction:column;height:calc(100vh - 156px)}
+.qzbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-shrink:0}
+.qzbar-l{}.qztitle{font-family:"Bebas Neue",sans-serif;font-size:2rem;letter-spacing:.5px}
+.qzbadge{font-family:"DM Mono",monospace;font-size:.62rem;letter-spacing:2px;text-transform:uppercase;padding:6px 14px;border-radius:999px;border:1px solid rgba(168,85,247,.3);color:var(--pu);background:rgba(168,85,247,.07)}
+.qstate{display:none;animation:fadeUp .4s cubic-bezier(.4,0,.2,1) both}
+.qstate.active{display:flex;flex-direction:column;height:100%}
+/* HOME */
+.hgrid{display:grid;grid-template-columns:1fr 1fr;gap:24px;flex:1}
+.qpanel{background:var(--s1);border:1px solid var(--bd);border-radius:16px;padding:28px;display:flex;flex-direction:column;position:relative;overflow:hidden}
+.qpanel::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.08),transparent)}
+.ptag{font-family:"DM Mono",monospace;font-size:.58rem;letter-spacing:3px;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.ptag::before{content:"";width:12px;height:1px}
+.ph .ptag{color:var(--cy)}.ph .ptag::before{background:var(--cy)}
+.pj .ptag{color:var(--pu)}.pj .ptag::before{background:var(--pu)}
+.qpanel h3{font-family:"Bebas Neue",sans-serif;font-size:2.2rem;letter-spacing:.5px;margin-bottom:10px}
+.qpanel p{font-size:.88rem;color:var(--mu);line-height:1.6;margin-bottom:20px;flex:1}
+/* fields */
+.qf{margin-bottom:13px}
+.qf label{display:block;font-size:.65rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--mu);margin-bottom:7px}
+.qf input{width:100%;background:var(--s2);border:1px solid var(--bd2);border-radius:8px;padding:11px 14px;color:var(--tx);font-family:"Inter",sans-serif;font-size:.9rem;outline:none;transition:border-color .2s,box-shadow .2s}
+.qf input:focus{border-color:var(--cy);box-shadow:0 0 0 3px rgba(0,229,255,.08)}
+.qf input::placeholder{color:var(--di)}
+.qf input.ci{font-family:"Bebas Neue",sans-serif;font-size:1.6rem;letter-spacing:8px;text-align:center;text-transform:uppercase;padding:14px}
+.qf input.ci:focus{border-color:var(--pu);box-shadow:0 0 0 3px rgba(168,85,247,.08)}
+/* buttons */
+.qb{display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 24px;border-radius:9px;font-size:.88rem;font-weight:600;cursor:pointer;transition:all .2s;border:none;outline:none;width:100%;letter-spacing:.3px}
+.qb.cy{background:linear-gradient(135deg,var(--cy),#00c4d4);color:#08090e;box-shadow:0 4px 20px rgba(0,229,255,.18)}.qb.cy:hover:not(:disabled){box-shadow:0 4px 28px rgba(0,229,255,.35);transform:translateY(-1px)}
+.qb.pu{background:linear-gradient(135deg,var(--pu),#9333ea);color:#fff;box-shadow:0 4px 20px rgba(168,85,247,.18)}.qb.pu:hover:not(:disabled){box-shadow:0 4px 28px rgba(168,85,247,.35);transform:translateY(-1px)}
+.qb.ot{background:transparent;border:1px solid var(--bd2);color:var(--mu)}.qb.ot:hover:not(:disabled){border-color:var(--bd2);color:var(--tx);background:var(--s2)}
+.qb.ye2{background:linear-gradient(135deg,var(--ye),#e5a800);color:#08090e}.qb.ye2:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 4px 20px rgba(245,197,24,.25)}
+.qb:disabled{opacity:.35;cursor:not-allowed;transform:none!important}
+.qb.sm{padding:9px 20px;font-size:.8rem;width:auto}
+.br3{display:flex;gap:10px}.br3 .qb{flex:1}
+/* room code */
+.rcode{font-family:"Bebas Neue",sans-serif;font-size:4.5rem;letter-spacing:14px;color:var(--cy);text-shadow:0 0 40px rgba(0,229,255,.45);text-align:center;padding:22px 16px;background:var(--s2);border:1px solid rgba(0,229,255,.2);border-radius:13px;margin:14px 0 6px;cursor:pointer;transition:all .2s}
+.rcode:hover{border-color:rgba(0,229,255,.4);box-shadow:0 0 30px rgba(0,229,255,.07)}
+.rchint{text-align:center;font-family:"DM Mono",monospace;font-size:.58rem;letter-spacing:2px;color:var(--di);margin-bottom:14px}
+/* player chips */
+.pchips{display:flex;flex-wrap:wrap;gap:7px;padding:12px;background:var(--s2);border:1px solid var(--bd);border-radius:10px;min-height:50px;margin:10px 0}
+.pchip{display:flex;align-items:center;gap:6px;padding:5px 11px;background:var(--s1);border:1px solid var(--bd);border-radius:999px;font-size:.78rem;font-weight:500;animation:popIn .25s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes popIn{from{opacity:0;transform:scale(.5)}to{opacity:1;transform:scale(1)}}
+.pav{width:20px;height:20px;border-radius:50%;font-size:.62rem;font-weight:700;color:#08090e;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+/* lobby */
+.lobgrid{display:grid;grid-template-columns:1fr 1fr;gap:24px;flex:1}
+.lobr{background:var(--s1);border:1px solid var(--bd);border-radius:13px;padding:24px;display:flex;flex-direction:column}
+.lbl2{font-family:"DM Mono",monospace;font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--di);margin-bottom:10px}
+.liveb{display:inline-flex;align-items:center;gap:6px;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.25);border-radius:999px;padding:4px 11px;font-family:"DM Mono",monospace;font-size:.62rem;color:var(--gr)}
+.liveb::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--gr);animation:lp 1.2s ease-in-out infinite}
+@keyframes lp{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.5)}}
+.dvz{height:1px;background:var(--bd);margin:14px 0}
+/* q progress */
+.qprog{display:flex;gap:4px;margin-bottom:14px}
+.qpd{flex:1;height:4px;border-radius:2px;background:var(--bd2);transition:background .4s}
+.qpd.dn{background:rgba(0,229,255,.4)}.qpd.ac{background:var(--cy);box-shadow:0 0 8px var(--cy)}
+/* answer buttons */
+.agrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ab2{display:flex;align-items:center;gap:12px;padding:15px 18px;background:var(--s2);border:2px solid var(--bd);border-radius:11px;cursor:pointer;font-family:"Inter",sans-serif;font-size:.88rem;font-weight:500;color:var(--tx);text-align:left;transition:all .2s}
+.ab2:hover:not(.dis){border-color:var(--bd2);background:var(--s3);transform:translateY(-2px);box-shadow:0 4px 18px rgba(0,0,0,.4)}
+.ab2.sel{border-color:var(--pu);background:rgba(168,85,247,.1)}.ab2.ok{border-color:var(--gr);background:rgba(34,197,94,.1);color:var(--gr)}
+.ab2.no{border-color:var(--re);background:rgba(255,59,107,.08);color:var(--re);opacity:.7}.ab2.dis{cursor:default}
+.al{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.82rem;background:var(--s3);flex-shrink:0;transition:all .2s}
+.ab2.sel .al{background:var(--pu);color:#fff}.ab2.ok .al{background:var(--gr);color:#08090e}.ab2.no .al{background:var(--re);color:#fff}
+/* host answers */
+.hagrid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}
+.ha{display:flex;align-items:center;gap:11px;padding:12px 15px;background:var(--s2);border:1px solid var(--bd);border-radius:10px}
+.ha.hok{border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.06)}
+.hlet{width:28px;height:28px;border-radius:7px;background:var(--s3);display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:700;flex-shrink:0}
+.ha.hok .hlet{background:var(--gr);color:#08090e}.hatxt{flex:1;font-size:.82rem;color:var(--mu);line-height:1.3}.ha.hok .hatxt{color:var(--tx)}
+.hacnt{font-family:"Bebas Neue",sans-serif;font-size:1.5rem;color:var(--cy);flex-shrink:0}
+/* stat bars */
+.sbr{display:flex;align-items:center;gap:10px;margin-bottom:11px}.sbl3{font-size:.78rem;font-weight:500;min-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbt3{flex:1;height:8px;background:var(--s3);border-radius:4px;overflow:hidden}.sbf3{height:100%;border-radius:4px;transition:width 1.2s cubic-bezier(.4,0,.2,1)}.sbp3{font-family:"DM Mono",monospace;font-size:.68rem;min-width:34px;text-align:right;color:var(--mu)}
+/* leaderboard */
+.lb{display:flex;flex-direction:column;gap:7px}
+.lbrow{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--s2);border:1px solid var(--bd);border-radius:11px;animation:popIn .35s cubic-bezier(.4,0,.2,1) both}
+.lbrow:nth-child(1){border-color:rgba(245,197,24,.3);background:rgba(245,197,24,.04)}
+.lbrank{font-family:"Bebas Neue",sans-serif;font-size:1.4rem;width:32px;text-align:center;color:var(--di);flex-shrink:0}
+.lbrow:nth-child(1) .lbrank{color:var(--ye)}.lbrow:nth-child(2) .lbrank{color:rgba(200,205,220,.75)}.lbrow:nth-child(3) .lbrank{color:#cd7f32}
+.lbnw{flex:1;display:flex;align-items:center;gap:9px;overflow:hidden}
+.lbname{font-weight:600;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lbyou{font-family:"DM Mono",monospace;font-size:.52rem;letter-spacing:1px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.25);border-radius:999px;padding:2px 7px;color:var(--cy);flex-shrink:0}
+.lbscore{font-family:"Bebas Neue",sans-serif;font-size:1.9rem;color:var(--cy);line-height:1;flex-shrink:0}
+.lbdelta{font-family:"DM Mono",monospace;font-size:.62rem;color:var(--gr);flex-shrink:0;margin-left:3px}
+/* result */
+.rbig{text-align:center;padding:24px;border-radius:14px}
+.rbig.g{background:rgba(34,197,94,.07);border:1px solid rgba(34,197,94,.22)}.rbig.b{background:rgba(255,59,107,.07);border:1px solid rgba(255,59,107,.18)}
+.ric{font-size:2.6rem;margin-bottom:8px;display:block}.rlbl{font-family:"Bebas Neue",sans-serif;font-size:2rem}.rpts{font-family:"Bebas Neue",sans-serif;font-size:3.2rem;line-height:1;color:var(--gr)}
+/* wait dots */
+.wdots{display:flex;gap:5px;align-items:center;justify-content:center}
+.wd{width:7px;height:7px;border-radius:50%;background:var(--cy);animation:lp .9s ease-in-out infinite}
+.wd:nth-child(2){animation-delay:.15s}.wd:nth-child(3){animation-delay:.3s}
+.pwait{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;padding:20px;background:var(--s2);border:1px solid var(--bd);border-radius:11px;margin-top:12px}
+/* confetti */
+.cfw{position:fixed;inset:0;pointer-events:none;z-index:800;overflow:hidden}
+.cfp{position:absolute;width:8px;height:8px;border-radius:2px;animation:cfall linear forwards}
+@keyframes cfall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
+/* toast */
+#t2{position:fixed;bottom:88px;left:50%;transform:translateX(-50%) translateY(70px);background:var(--s1);border:1px solid var(--bd2);border-radius:10px;padding:10px 20px;font-size:.82rem;font-weight:500;z-index:900;transition:transform .35s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;font-family:"Inter",sans-serif}
+#t2.sh{transform:translateX(-50%) translateY(0)}#t2.ok{border-color:rgba(34,197,94,.5);color:var(--gr)}#t2.er{border-color:rgba(255,59,107,.5);color:var(--re)}
+/* sql */
+.sqlpre{background:#080a10;border:1px solid var(--bd);border-radius:9px;padding:16px 18px;font-family:"DM Mono",monospace;font-size:.68rem;color:#7dd3a8;line-height:1.8;overflow:auto;white-space:pre;max-height:240px}
+/* 2col quiz layout */
+.q2{display:grid;grid-template-columns:3fr 2fr;gap:24px;flex:1}
+.q2eq{display:grid;grid-template-columns:1fr 1fr;gap:24px;flex:1}
+.qcol{display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.scanline{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--re),transparent);animation:scv 3s ease-in-out infinite;top:0;box-shadow:0 0 16px var(--re)}
+@keyframes scv{0%{top:0;opacity:0}5%{opacity:1}95%{opacity:1}100%{top:100%;opacity:0}}
+@keyframes gflicker{0%,100%{opacity:.6}50%{opacity:.3}}
+@keyframes blnk{0%,100%{opacity:1}50%{opacity:.4}}
+@media(max-width:768px){
+  .slide{padding:80px 28px 70px}.big{font-size:clamp(3rem,12vw,6rem)}
+  #s10{padding:80px 20px 60px}.rcode{font-size:3rem;letter-spacing:10px}
+  .hgrid,.agrid,.hagrid,.lobgrid,.q2,.q2eq,.c2,.c3,.stats,.split{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div id="prog"></div>
+<div id="t2"></div>
+<nav id="nav">
+  <div class="nav-logo">MEDIA<em>WIJS</em>HEID</div>
+  <div class="nav-r">
+    <div class="nav-badge" id="nb">Presentatie</div>
+    <div class="nav-ctr"><strong id="cn">01</strong> / 11</div>
+  </div>
+</nav>
+<div id="deck">
+<!-- S0 TITLE -->
+<div class="slide active" id="s0">
+  <div class="sbg gbg"><div class="glow" style="width:700px;height:700px;background:var(--cy);right:-250px;top:-200px"></div><div class="glow" style="width:500px;height:500px;background:var(--pu);left:-150px;bottom:-150px"></div></div>
+  <div class="sc">
+    <div class="stag">Schoolpresentatie — Mediawijsheid 2025</div>
+    <div class="big">MEDIA<br><span class="cy">WIJS</span><span style="color:var(--tx)">HEID</span><br><span style="font-size:.45em;color:var(--di)">&amp; PRESENTEREN</span></div>
+    <p class="sub">Nepnieuws, deepfakes en digitale beeldvorming. Met een live quiz aan het einde.</p>
+    <div style="display:flex;gap:28px;align-items:center">
+      <div style="font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:2px;color:var(--di)">THEMA<span style="color:var(--mu);display:block;margin-top:3px">Mediawijsheid · Deepfakes</span></div>
+      <div style="width:1px;height:36px;background:var(--bd)"></div>
+      <div style="font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:2px;color:var(--di)">SLIDES<span style="color:var(--cy);display:block;font-size:1.4rem;font-family:'Bebas Neue',sans-serif;margin-top:1px">11</span></div>
+    </div>
+  </div>
+  <div style="position:absolute;right:72px;top:50%;transform:translateY(-50%) rotate(180deg);writing-mode:vertical-rl;font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:3px;text-transform:uppercase;color:var(--di)">Kritisch denken · Digitale vaardigheden</div>
+</div>
+<!-- S1 WAT IS -->
+<div class="slide" id="s1">
+  <div class="sbg"><div class="glow" style="width:600px;height:600px;background:var(--cy);left:-200px;top:50%;transform:translateY(-50%)"></div></div>
+  <div class="sc">
+    <div class="stag">01 — Introductie</div>
+    <div class="big">WAT IS<br><span class="cy">MEDIA</span>WIJS<span class="cy">HEID</span>?</div>
+    <div class="divl"></div>
+    <div class="cards c3">
+      <div class="card" style="--ca:var(--cy)"><span class="ci">🔍</span><div class="ct">Begrijpen</div><div class="cb">Media en informatie begrijpen: hoe werken ze, wat is hun doel en hoe beïnvloeden ze jou?</div></div>
+      <div class="card" style="--ca:var(--pu)"><span class="ci">⚖️</span><div class="ct">Beoordelen</div><div class="cb">Informatie kritisch evalueren: is het betrouwbaar, wie is de bron en wat is het motief?</div></div>
+      <div class="card" style="--ca:var(--re)"><span class="ci">✏️</span><div class="ct">Creëren</div><div class="cb">Zelf verantwoordelijk content maken en bewust omgaan met wat je deelt online.</div></div>
+    </div>
+    <div class="quote" style="margin-top:20px"><div class="qt">"Mediawijsheid is de basis voor actief en kritisch burgerschap in de digitale samenleving."</div><div class="qa">— Mediawijzer.net</div></div>
+  </div>
+</div>
+<!-- S2 NEPNIEUWS -->
+<div class="slide" id="s2">
+  <div class="sbg gbg"><div class="glow" style="width:450px;height:450px;background:var(--re);right:80px;bottom:-100px"></div></div>
+  <div class="sc">
+    <div class="stag re">02 — Nepnieuws</div>
+    <div class="big">HEB JE HET<br><span class="re">DOOR</span>?</div>
+    <p class="sub">Nepnieuws is bewust fout of misleidend gebracht. Het verspreidt zich razendsnel via sociale media.</p>
+    <div class="stats">
+      <div class="stat"><div class="stn">6×</div><div class="stl">Sneller verspreid dan echt nieuws op sociale media</div></div>
+      <div class="stat"><div class="stn">59%</div><div class="stl">Deelt links zonder het artikel te lezen</div></div>
+      <div class="stat"><div class="stn">70%</div><div class="stl">Van jongeren heeft moeite nepnieuws te herkennen</div></div>
+    </div>
+    <div class="pills" style="margin-top:22px"><div class="pill on">Clickbait</div><div class="pill">Propaganda</div><div class="pill">Satire</div><div class="pill">Misleidende titels</div><div class="pill">Uit context</div><div class="pill">Gefabriceerd</div></div>
+  </div>
+</div>
+<!-- S3 HERKENNEN -->
+<div class="slide" id="s3">
+  <div class="sbg"><div class="glow" style="width:550px;height:550px;background:var(--cy);right:-180px;top:50%;transform:translateY(-50%)"></div></div>
+  <div class="sc">
+    <div class="stag">03 — Herkennen</div>
+    <div class="big">HOE HERKEN<br>JE <span class="cy">NEP</span>NIEUWS?</div>
+    <div class="steps" style="margin-top:20px">
+      <div class="step"><div class="sn">01</div><div><div class="st">Check de bron</div><div class="sd">Wie schrijft dit? Is de website betrouwbaar? Zoek naar contact- en redactiegegevens.</div></div></div>
+      <div class="step"><div class="sn">02</div><div><div class="st">Lees verder dan de titel</div><div class="sd">Clickbait-titels kloppen vaak niet. Lees het hele artikel voor een eerlijk oordeel.</div></div></div>
+      <div class="step"><div class="sn">03</div><div><div class="st">Zoek meerdere bronnen</div><div class="sd">Wordt dit gemeld door andere erkende media? Dan is de kans groter dat het klopt.</div></div></div>
+      <div class="step"><div class="sn">04</div><div><div class="st">Gebruik factchecker.nl</div><div class="sd">Websites als Factcheck.org, Snopes of factchecker.nl controleren viral claims professioneel.</div></div></div>
+    </div>
+  </div>
+</div>
+<!-- S4 DEEPFAKES -->
+<div class="slide" id="s4">
+  <div class="sbg gbg"><div class="glow" style="width:500px;height:500px;background:var(--re);left:-150px;top:-150px"></div></div>
+  <div class="sc">
+    <div class="stag re">04 — Deepfakes</div>
+    <div class="split" style="align-items:start">
+      <div>
+        <div class="big" style="font-size:clamp(3rem,5.5vw,5rem)">DEEP<span class="re">FAKES</span>:<br>ECHT OF NEP?</div>
+        <p class="sub" style="font-size:.95rem">AI kan nu gezichten, stemmen en video's zo realistisch nabootsen dat ze nauwelijks van echt te onderscheiden zijn.</p>
+        <div class="divl" style="background:var(--re)"></div>
+        <div style="display:flex;flex-direction:column;gap:9px">
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--s1);border:1px solid var(--bd);border-radius:9px"><span style="color:var(--re)">⚠</span><span style="font-size:.85rem;color:var(--mu)">Let op onnatuurlijke oogbewegingen</span></div>
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--s1);border:1px solid var(--bd);border-radius:9px"><span style="color:var(--re)">⚠</span><span style="font-size:.85rem;color:var(--mu)">Vervaging rondom gezicht en haar</span></div>
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--s1);border:1px solid var(--bd);border-radius:9px"><span style="color:var(--re)">⚠</span><span style="font-size:.85rem;color:var(--mu)">Audio die niet goed synchroniseert</span></div>
+          <div style="display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--s1);border:1px solid var(--bd);border-radius:9px"><span style="color:var(--re)">⚠</span><span style="font-size:.85rem;color:var(--mu)">Vreemde oor- of tandenstructuur</span></div>
+        </div>
+      </div>
+      <div>
+        <div style="background:var(--s1);border:1px solid rgba(255,59,107,.25);border-radius:14px;overflow:hidden;aspect-ratio:4/3;position:relative;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px">
+          <div class="scanline"></div>
+          <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(255,59,107,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,59,107,.1) 1px,transparent 1px);background-size:22px 22px;animation:gflicker 3s ease-in-out infinite"></div>
+          <div style="font-size:4rem;position:relative;z-index:1;width:90px;height:90px;border-radius:50%;background:var(--s2);border:2px solid rgba(255,59,107,.4);display:flex;align-items:center;justify-content:center">🤖</div>
+          <div style="background:rgba(255,59,107,.15);border:1px solid rgba(255,59,107,.4);border-radius:6px;padding:6px 14px;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:2px;color:var(--re);text-transform:uppercase;position:relative;z-index:1;animation:blnk 2s ease-in-out infinite">⚡ AI GEGENEREERD</div>
+          <div style="font-family:'DM Mono',monospace;font-size:.55rem;color:var(--di);letter-spacing:1px;text-align:center;position:relative;z-index:1">BETROUWBAARHEID: 12%<br><span style="color:var(--re)">DEEPFAKE DETECTIE ACTIEF</span></div>
+        </div>
+        <div style="margin-top:10px;font-size:.8rem;color:var(--di);text-align:center;font-style:italic">Tools: Deepware · FakeCatcher · Sensity AI</div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- S5 GAN -->
+<div class="slide" id="s5">
+  <div class="sbg"><div class="glow" style="width:500px;height:500px;background:var(--pu);left:-150px;top:50%;transform:translateY(-50%)"></div></div>
+  <div class="sc">
+    <div class="stag pu">05 — Technologie</div>
+    <div class="split" style="align-items:start;gap:40px">
+      <div>
+        <div class="big" style="font-size:clamp(2.8rem,5vw,4.5rem)">HOE WERKT<br>DE <span class="pu">AI</span> ERACHTER?</div>
+        <div class="steps" style="margin-top:18px">
+          <div class="step"><div class="sn" style="color:var(--cy)">1</div><div><div class="st">Data verzamelen</div><div class="sd">Duizenden foto's van het doelgezicht trainen het model.</div></div></div>
+          <div class="step"><div class="sn" style="color:var(--pu)">2</div><div><div class="st">GAN Training</div><div class="sd">Generator maakt nep · Discriminator probeert ze te herkennen.</div></div></div>
+          <div class="step"><div class="sn" style="color:var(--re)">3</div><div><div class="st">Face Swap</div><div class="sd">Gezicht pixel voor pixel vervangen en ingepast.</div></div></div>
+          <div class="step"><div class="sn" style="color:var(--gr)">4</div><div><div class="st">Eindresultaat</div><div class="sd">Hyperrealistisch — klaar om misleidend verspreid te worden.</div></div></div>
+        </div>
+      </div>
+      <div>
+        <div class="arch">
+          <div class="archt">GAN — Generative Adversarial Network</div>
+          <div class="archf">
+            <div class="archr"><div class="ab ai">Bronvideo<br><small style="opacity:.6;font-size:.65em">Origineel gezicht</small></div><div class="ab ai">Doelvideo<br><small style="opacity:.6;font-size:.65em">Doelgezicht</small></div></div>
+            <div class="archa">↓ Encoding</div>
+            <div class="archr"><div class="ab ap">Encoder A</div><div class="ab ap">Encoder B</div></div>
+            <div class="archa">↓ Shared Latent Space</div>
+            <div class="archr"><div class="ab ag">Gezichtsstructuur & Expressies<br><small style="opacity:.6;font-size:.65em">Gedeelde representatie</small></div></div>
+            <div class="archa">↓ Decoding & Output</div>
+            <div class="archr"><div class="ab ap">Decoder</div><div class="ab ap">Discriminator</div></div>
+            <div class="archa">↓</div>
+            <div class="archr"><div class="ab ao" style="max-width:240px">🎭 Deepfake Output<br><small style="opacity:.6;font-size:.65em">Moeilijk te detecteren</small></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- S6 SIFT -->
+<div class="slide" id="s6">
+  <div class="sbg gbg"><div class="glow" style="width:500px;height:500px;background:var(--cy);right:-100px;top:50%;transform:translateY(-50%)"></div></div>
+  <div class="sc">
+    <div class="stag">06 — Bronkritiek</div>
+    <div class="big">BRONNEN<br><span class="cy">KRITISCH</span><br>BEOORDELEN</div>
+    <p class="sub">Gebruik de SIFT-methode om snel en effectief bronnen te checken.</p>
+    <div class="cards c2">
+      <div class="card" style="--ca:var(--cy)"><div style="font-family:'Bebas Neue',sans-serif;font-size:2.4rem;color:var(--cy);margin-bottom:6px">S — Stop</div><div class="cb">Pauzeer. Reageer niet automatisch. Wil je dit werkelijk delen?</div></div>
+      <div class="card" style="--ca:var(--pu)"><div style="font-family:'Bebas Neue',sans-serif;font-size:2.4rem;color:var(--pu);margin-bottom:6px">I — Investigate</div><div class="cb">Onderzoek de bron vóór je de inhoud volledig gelooft.</div></div>
+      <div class="card" style="--ca:var(--ye)"><div style="font-family:'Bebas Neue',sans-serif;font-size:2.4rem;color:var(--ye);margin-bottom:6px">F — Find</div><div class="cb">Zoek betere dekking via andere bronnen die het verhaal bevestigen of ontkrachten.</div></div>
+      <div class="card" style="--ca:var(--gr)"><div style="font-family:'Bebas Neue',sans-serif;font-size:2.4rem;color:var(--gr);margin-bottom:6px">T — Trace</div><div class="cb">Herleid claims naar de originele bron. Is het in de juiste context geplaatst?</div></div>
+    </div>
+  </div>
+</div>
+<!-- S7 ONLINE GEDRAG -->
+<div class="slide" id="s7">
+  <div class="sbg"><div class="glow" style="width:500px;height:500px;background:var(--ye);right:-100px;bottom:-100px"></div></div>
+  <div class="sc">
+    <div class="stag ye">07 — Online Gedrag</div>
+    <div class="big">JOUW<br>DIGITALE<br><span class="ye">VOET</span>AFDRUK</div>
+    <div class="split" style="margin-top:18px">
+      <div class="tl">
+        <div class="tli"><div class="tll">Denk na</div><div class="tlt">Vóór het plaatsen</div><div class="tld">Is dit iets wat ik over 10 jaar nog wil dat mensen kunnen zien?</div></div>
+        <div class="tli"><div class="tll">Controleer</div><div class="tlt">Vóór het delen</div><div class="tld">Is de informatie correct? Kan ik dit verifiëren bij een betrouwbare bron?</div></div>
+        <div class="tli"><div class="tll">Respecteer</div><div class="tlt">Altijd</div><div class="tld">Behandel anderen online zoals je zelf behandeld wil worden.</div></div>
+        <div class="tli"><div class="tll">Bescherm</div><div class="tlt">Jouw privacy</div><div class="tld">Check je privacyinstellingen en deel geen persoonlijke data met onbekenden.</div></div>
+      </div>
+      <div>
+        <div class="quote"><div class="qt">"Online gedrag is geen apart leven — het is onderdeel van wie je bent."</div><div class="qa">— Mediawijsheid.nl</div></div>
+        <div class="pills" style="margin-top:16px"><div class="pill on">Cyberpesten</div><div class="pill">Privacy</div><div class="pill">Digitale reputatie</div><div class="pill">Algoritmes</div><div class="pill">Filterbubbel</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- S8 PRESENTEREN -->
+<div class="slide" id="s8">
+  <div class="sbg gbg"><div class="glow" style="width:600px;height:600px;background:var(--pu);right:-200px;top:-200px"></div></div>
+  <div class="sc">
+    <div class="stag pu">08 — Presenteren</div>
+    <div class="big">TIPS VOOR EEN<br>TOP <span class="pu">PRESENTATIE</span></div>
+    <div class="divl" style="background:var(--pu)"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">
+      <div style="display:flex;gap:12px;padding:14px;background:var(--s1);border:1px solid var(--bd);border-radius:10px"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.9rem;color:rgba(168,85,247,.3);min-width:28px">1</div><div><div style="font-size:.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--pu);margin-bottom:3px">Ken je publiek</div><div style="font-size:.83rem;color:var(--mu);line-height:1.5">Pas taal en inhoud aan.</div></div></div>
+      <div style="display:flex;gap:12px;padding:14px;background:var(--s1);border:1px solid var(--bd);border-radius:10px"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.9rem;color:rgba(168,85,247,.3);min-width:28px">2</div><div><div style="font-size:.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--pu);margin-bottom:3px">Begin–midden–eind</div><div style="font-size:.83rem;color:var(--mu);line-height:1.5">Intro, uitleg, conclusie.</div></div></div>
+      <div style="display:flex;gap:12px;padding:14px;background:var(--s1);border:1px solid var(--bd);border-radius:10px"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.9rem;color:rgba(168,85,247,.3);min-width:28px">3</div><div><div style="font-size:.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--pu);margin-bottom:3px">Meer beelden</div><div style="font-size:.83rem;color:var(--mu);line-height:1.5">Minder tekst — publiek leest of luistert, niet allebei.</div></div></div>
+      <div style="display:flex;gap:12px;padding:14px;background:var(--s1);border:1px solid var(--bd);border-radius:10px"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.9rem;color:rgba(168,85,247,.3);min-width:28px">4</div><div><div style="font-size:.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--pu);margin-bottom:3px">Oogcontact</div><div style="font-size:.83rem;color:var(--mu);line-height:1.5">Scan de zaal. Creëer verbinding.</div></div></div>
+      <div style="display:flex;gap:12px;padding:14px;background:var(--s1);border:1px solid var(--bd);border-radius:10px"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.9rem;color:rgba(168,85,247,.3);min-width:28px">5</div><div><div style="font-size:.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--pu);margin-bottom:3px">Oefen hardop</div><div style="font-size:.83rem;color:var(--mu);line-height:1.5">Niet in je hoofd — luid.</div></div></div>
+      <div style="display:flex;gap:12px;padding:14px;background:var(--s1);border:1px solid var(--bd);border-radius:10px"><div style="font-family:'Bebas Neue',sans-serif;font-size:1.9rem;color:rgba(168,85,247,.3);min-width:28px">6</div><div><div style="font-size:.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--pu);margin-bottom:3px">Vertel een verhaal</div><div style="font-size:.83rem;color:var(--mu);line-height:1.5">Feiten vergeet je. Een goed verhaal onthoud je.</div></div></div>
+    </div>
+  </div>
+</div>
+<!-- S9 SAMENVATTING -->
+<div class="slide" id="s9">
+  <div class="sbg gbg"><div class="glow" style="width:800px;height:800px;background:var(--cy);left:50%;top:50%;transform:translate(-50%,-50%)"></div></div>
+  <div class="sc">
+    <div class="stag">09 — Samenvatting</div>
+    <div class="big">KRITISCH.<br>CREATIEF.<br><span class="cy">MEDIAWIJS.</span></div>
+    <p class="sub">Weet wat je ziet, vraag wat je deelt, spreek met vertrouwen.</p>
+    <div class="pills"><div class="pill on">Nepnieuws herkennen</div><div class="pill on">Deepfakes</div><div class="pill on">SIFT-methode</div><div class="pill on">Online gedrag</div><div class="pill on">GAN technologie</div><div class="pill on">Presenteren</div></div>
+    <div style="margin-top:28px;padding:18px 24px;background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.25);border-radius:12px;display:flex;align-items:center;gap:16px">
+      <span style="font-size:1.8rem">🎮</span>
+      <div><div style="font-size:.75rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--pu);margin-bottom:3px">Volgende slide</div><div style="font-size:.9rem;color:var(--mu)">Live Quiz — test jouw kennis in realtime samen met de klas!</div></div>
+      <span style="font-family:'DM Mono',monospace;font-size:.7rem;color:var(--di);margin-left:auto">→ druk op pijltje</span>
+    </div>
+  </div>
+</div>
+<!-- S10 QUIZ -->
+<div class="slide" id="s10" style="padding:88px 44px 68px;align-items:center;justify-content:flex-start">
+  <div class="sbg" style="background:radial-gradient(ellipse at 30% 20%,rgba(168,85,247,.07),transparent 55%),radial-gradient(ellipse at 75% 80%,rgba(0,229,255,.04),transparent 50%)"></div>
+  <div id="qz" style="position:relative;z-index:1;width:100%;max-width:1100px;margin:0 auto;display:flex;flex-direction:column;height:calc(100vh - 156px)">
+    <div class="qzbar">
+      <div><div class="stag pu" style="margin-bottom:6px">10 — Live Quiz</div><div class="qztitle">MEDIAWIJSHEID QUIZ</div></div>
+      <div class="qzbadge" id="qsb">Wachten...</div>
+    </div>
+    <!-- SETUP -->
+    <div class="qstate active" id="qz-setup">
+      <div style="background:var(--s1);border:1px solid rgba(255,59,107,.3);border-radius:14px;padding:24px;margin-bottom:14px">
+        <div class="stag re" style="margin-bottom:10px">Eenmalige Setup</div>
+        <div style="font-size:.85rem;color:var(--mu);line-height:1.6;margin-bottom:14px">Voer dit SQL uit in je <b style="color:var(--tx)">Supabase SQL Editor</b>, zet Realtime aan voor de 3 tabellen, en herlaad.</div>
+        <div class="sqlpre">CREATE TABLE quiz_rooms (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  code text UNIQUE NOT NULL,
+  status text DEFAULT 'waiting',
+  current_question int DEFAULT -1,
+  question_end_time timestamptz,
+  questions jsonb,
+  created_at timestamptz DEFAULT now()
+);
+CREATE TABLE players (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  room_id uuid REFERENCES quiz_rooms(id) ON DELETE CASCADE,
+  name text NOT NULL, score int DEFAULT 0,
+  created_at timestamptz DEFAULT now()
+);
+CREATE TABLE answers (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  room_id uuid REFERENCES quiz_rooms(id) ON DELETE CASCADE,
+  player_id uuid REFERENCES players(id) ON DELETE CASCADE,
+  question_index int, answer_index int,
+  is_correct boolean, points int DEFAULT 0,
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE quiz_rooms ENABLE ROW LEVEL SECURITY;
+ALTER TABLE players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE answers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "open" ON quiz_rooms FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "open" ON players FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "open" ON answers FOR ALL USING (true) WITH CHECK (true);</div>
+        <div style="font-size:.78rem;color:var(--di);margin-top:12px">Dan: <b style="color:var(--tx)">Database → Replication</b> → Realtime AAN voor quiz_rooms, players, answers</div>
+      </div>
+      <button class="qb cy" onclick="location.reload()">✓ SQL klaar — herlaad pagina</button>
+    </div>
+    <!-- HOME -->
+    <div class="qstate" id="qz-home" style="flex:1">
+      <div class="hgrid" style="flex:1">
+        <div class="qpanel ph">
+          <div class="ptag">Host</div>
+          <h3 style="font-family:'Bebas Neue',sans-serif;font-size:2.2rem;letter-spacing:.5px;margin-bottom:10px">HOST EEN QUIZ</h3>
+          <p>Maak een room aan en deel de code met je klas. Jij bepaalt het tempo.</p>
+          <div class="qf"><label>Jouw naam</label><input id="hName" placeholder="Bijv. Nassim" maxlength="20" autocomplete="off"></div>
+          <button class="qb cy" onclick="qzHost()">🎮 Host starten</button>
+        </div>
+        <div class="qpanel pj">
+          <div class="ptag">Speler</div>
+          <h3 style="font-family:'Bebas Neue',sans-serif;font-size:2.2rem;letter-spacing:.5px;margin-bottom:10px">DOE MEE</h3>
+          <p>Vul de room code in die de host deelt en spring direct de quiz in.</p>
+          <div class="qf"><label>Jouw naam</label><input id="jName" placeholder="Bijv. Zaid" maxlength="20" autocomplete="off"></div>
+          <div class="qf"><label>Room Code</label><input id="jCode" class="ci" placeholder="ABCD12" maxlength="6" autocomplete="off" oninput="this.value=this.value.toUpperCase()"></div>
+          <button class="qb pu" onclick="qzJoin()">🚀 Deelnemen</button>
+        </div>
+      </div>
+    </div>
+    <!-- HOST LOBBY -->
+    <div class="qstate" id="qz-hlobby">
+      <div class="lobgrid" style="flex:1">
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div><div class="lbl2">Room Code — klik om te kopiëren</div><div class="rcode" id="rcEl" onclick="qzCopy()">——</div><div class="rchint">📋 klik om te kopiëren</div><div style="display:flex;align-items:center;gap:10px;padding:12px 15px;background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.25);border-radius:10px;margin-bottom:4px"><span style="font-size:1rem">📱</span><div style="font-size:.82rem;color:var(--mu)">Spelers openen: <b style="color:var(--pu);font-family:'DM Mono',monospace;font-size:.78rem">quizlive-speler.html</b></div></div></div>
+          <div style="display:flex;align-items:center;justify-content:space-between"><div class="liveb"><span id="pCount">0</span>&nbsp;spelers</div><div style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--di)">10 vragen gereed</div></div>
+          <div class="br3" style="margin-top:auto"><button class="qb ot sm" style="flex:none;width:auto" onclick="qzGoHome()">← Terug</button><button class="qb cy" id="startBtn" onclick="qzHostStart()" disabled>▶ Start Quiz</button></div>
+        </div>
+        <div class="lobr"><div class="lbl2">Spelers in lobby</div><div class="pchips" id="plEl" style="flex:1"><span style="color:var(--di);font-size:.82rem">Wachten op spelers...</span></div></div>
+      </div>
+    </div>
+    <!-- PLAYER LOBBY -->
+    <div class="qstate" id="qz-plobby" style="align-items:center;justify-content:center;flex:1;text-align:center">
+      <div style="max-width:480px;width:100%">
+        <div style="font-size:2.5rem;margin-bottom:12px">👋</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:2.4rem;margin-bottom:8px">Hey, <span style="color:var(--cy)" id="myNm">—</span>!</div>
+        <div style="font-size:.88rem;color:var(--mu);margin-bottom:18px">Code: <b style="color:var(--tx);font-family:'Bebas Neue',sans-serif;letter-spacing:4px;font-size:1.2rem" id="myRc">——</b></div>
+        <div class="pchips" id="plEl2" style="justify-content:center"></div>
+        <div class="pwait" style="margin-top:14px"><div class="wdots"><div class="wd"></div><div class="wd"></div><div class="wd"></div></div><div style="font-size:.85rem;color:var(--mu)">Wachten tot de host de quiz start...</div></div>
+        <button class="qb ot sm" style="width:auto;margin-top:14px" onclick="qzGoHome()">← Verlaten</button>
+      </div>
+    </div>
+    <!-- HOST QUESTION -->
+    <div class="qstate" id="qz-hquestion" style="flex:1">
+      <div class="q2" style="flex:1">
+        <div class="qcol">
+          <div style="display:flex;align-items:center;justify-content:space-between"><div id="hqn" style="font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:2px;color:var(--cy);text-transform:uppercase">Vraag 1/10</div><div class="liveb">antwoorden <b id="ac">0/0</b></div></div>
+          <div id="hqprog" class="qprog"></div>
+          <div id="hqtxt" class="big" style="font-size:clamp(1.8rem,3.5vw,2.6rem);line-height:1.05;flex:none"></div>
+          <div class="hagrid" id="hqans"></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
+            <div style="font-size:.78rem;color:var(--di)">Spelers zien hun eigen timer</div>
+            <button class="qb ye2 sm" style="width:auto" onclick="qzHostShowRes()">Resultaten →</button>
+          </div>
+        </div>
+        <div class="qcol" style="align-items:center;justify-content:center"><div id="htw"></div></div>
+      </div>
+    </div>
+    <!-- HOST RESULTS -->
+    <div class="qstate" id="qz-hresults" style="flex:1">
+      <div id="hrtitle" style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;margin-bottom:14px;flex-shrink:0"></div>
+      <div id="hrbars" style="flex:1;overflow:auto"></div>
+      <div id="hrstats" style="font-size:.82rem;color:var(--mu);margin:10px 0;flex-shrink:0"></div>
+      <div class="br3" style="flex-shrink:0"><button class="qb ot" onclick="qzHostLB()">🏆 Leaderboard</button><button class="qb cy" id="hrnxt" onclick="qzHostNext()">Volgende →</button></div>
+    </div>
+    <!-- PLAYER QUESTION -->
+    <div class="qstate" id="qz-pquestion" style="flex:1">
+      <div class="q2" style="flex:1">
+        <div class="qcol">
+          <div id="pqn" style="font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:2px;color:var(--cy);text-transform:uppercase">Vraag 1/10</div>
+          <div id="pqprog" class="qprog"></div>
+          <div id="pqtxt" class="big" style="font-size:clamp(1.8rem,3.5vw,2.6rem);line-height:1.05"></div>
+          <div class="agrid" id="pqans"></div>
+          <div id="pqwait" class="pwait" style="display:none"><div class="wdots"><div class="wd"></div><div class="wd"></div><div class="wd"></div></div><div style="font-size:.85rem;color:var(--mu)">Antwoord verstuurd — wachten op host...</div></div>
+        </div>
+        <div class="qcol" style="align-items:center;justify-content:center"><div id="ptw"></div></div>
+      </div>
+    </div>
+    <!-- PLAYER RESULTS -->
+    <div class="qstate" id="qz-presults" style="align-items:center;justify-content:center;flex:1">
+      <div style="max-width:480px;width:100%">
+        <div id="prbig" class="rbig"></div>
+        <div style="text-align:center;margin-top:12px;font-size:.85rem;color:var(--mu)">Totaal: <b style="color:var(--cy);font-family:'Bebas Neue',sans-serif;font-size:1.6rem" id="prtot">0</b> punten</div>
+        <div class="pwait" style="margin-top:14px"><div class="wdots"><div class="wd"></div><div class="wd"></div><div class="wd"></div></div><div style="font-size:.82rem;color:var(--di)">Wachten op leaderboard...</div></div>
+      </div>
+    </div>
+    <!-- LEADERBOARD -->
+    <div class="qstate" id="qz-lb" style="flex:1">
+      <div class="q2eq" style="flex:1">
+        <div class="qcol">
+          <div id="lbtitle" style="font-family:'Bebas Neue',sans-serif;font-size:1.9rem;margin-bottom:12px;flex-shrink:0">Tussenstand</div>
+          <div class="lb" id="lblist" style="flex:1;overflow:auto"></div>
+        </div>
+        <div class="qcol" id="lbhb" style="justify-content:flex-end;display:none">
+          <button class="qb cy" id="lbnxt" onclick="qzHostNext()">Volgende vraag →</button>
+        </div>
+      </div>
+    </div>
+    <!-- FINAL -->
+    <div class="qstate" id="qz-final" style="flex:1">
+      <div style="text-align:center;margin-bottom:18px;flex-shrink:0"><div style="font-size:2.5rem;margin-bottom:6px">🏆</div><div style="font-family:'Bebas Neue',sans-serif;font-size:3rem;color:var(--ye)">EINDSTAND</div><div style="font-size:.88rem;color:var(--mu);margin-top:6px" id="winl"></div></div>
+      <div class="lb" id="finlb" style="flex:1;overflow:auto"></div>
+      <div class="br3" style="margin-top:14px;flex-shrink:0"><button class="qb ot" onclick="qzGoHome()">← Nieuwe quiz</button></div>
+    </div>
+  </div>
+</div>
+</div>
+<!-- CONTROLS -->
+<div id="controls">
+  <button class="cbtn" id="pb" onclick="go(-1)" disabled>←</button>
+  <div class="dnav-wrap" id="dn"></div>
+  <button class="cbtn" id="nb2" onclick="go(1)">→</button>
+</div>
+<div id="kh"><span class="kk">←</span><span class="kk">→</span>&nbsp;navigeer</div>
+<script>
+const SB_URL="https://uuivwhzpcnudklmwaqpn.supabase.co";
+const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1aXZ3aHpwY251ZGtsbXdhcXBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4NzIyNTIsImV4cCI6MjA4OTQ0ODI1Mn0.xfhX5T4-4vGqvE3g47j5NroADwDeUKEvA1T8riObRlU";
+const db=supabase.createClient(SB_URL,SB_KEY);
+const QS=[
+  {q:"Wat is een 'deepfake'?",opts:["Een computervirus","AI-gegenereerde nep video of foto","Een valse nieuwssite","Een hackingmethode"],ans:1,time:20},
+  {q:"Wat betekent de 'S' in de SIFT-methode?",opts:["Scannen","Selecteer","Stop","Samenvatten"],ans:2,time:15},
+  {q:"Hoe snel verspreidt nepnieuws zich t.o.v. echt nieuws?",opts:["Even snel","2× sneller","6× sneller","Langzamer"],ans:2,time:20},
+  {q:"Welke technologie maakt deepfakes mogelijk?",opts:["Blockchain","GAN — Generative Adversarial Network","VPN","DNS Filtering"],ans:1,time:20},
+  {q:"Wat is een 'filterbubbel'?",opts:["Een privacy-instelling","Een adblocker","Algoritme dat content toont passend bij jouw mening","Een veiligheidsprogramma"],ans:2,time:20},
+  {q:"Hoeveel % van jongeren heeft moeite met nepnieuws herkennen?",opts:["30%","50%","70%","90%"],ans:2,time:15},
+  {q:"Wat is clickbait?",opts:["Een manier om bestanden te delen","Overdreven titels om kliks te trekken","Een type malware","Een socialmedia-platform"],ans:1,time:15},
+  {q:"Welke tool detecteert deepfakes automatisch?",opts:["Google Translate","Windows Defender","FakeCatcher van Intel","VLC Media Player"],ans:2,time:20},
+  {q:"Wat doe je bij twijfel over een nieuwsbericht?",opts:["Meteen delen","Negeren","Reageren met mening","Checken bij meerdere betrouwbare bronnen"],ans:3,time:20},
+  {q:"Wat is mediawijsheid?",opts:["Alleen nieuws lezen","Geen sociale media gebruiken","Media begrijpen, beoordelen en verantwoord gebruiken","Altijd alles geloven"],ans:2,time:20}
+];
+const LTR=["A","B","C","D"],AVC=["#00e5ff","#a855f7","#ff3b6b","#f5c518","#22c55e","#fb923c","#ec4899","#3b82f6"];
+const TOTAL=11;let cur=0;
+const prog=document.getElementById("prog"),dnWrap=document.getElementById("dn"),cnEl=document.getElementById("cn"),pbBtn=document.getElementById("pb"),nb2Btn=document.getElementById("nb2"),nbBadge=document.getElementById("nb"),ctls=document.getElementById("controls"),kh=document.getElementById("kh");
+for(let i=0;i<TOTAL;i++){const d=document.createElement("div");d.className="dn"+(i===10?" qd":"")+(i===0?" on":"");d.onclick=()=>goTo(i);dnWrap.appendChild(d);}
+function goTo(n){
+  if(n<0||n>=TOTAL)return;
+  const ss=document.querySelectorAll(".slide");
+  ss[cur].classList.remove("active");ss[cur].classList.add("exit");
+  const p=cur;cur=n;
+  setTimeout(()=>ss[p].classList.remove("exit"),600);
+  ss[cur].classList.add("active");
+  document.querySelectorAll(".dn").forEach((d,i)=>d.classList.toggle("on",i===cur));
+  prog.style.width=((cur+1)/TOTAL*100)+"%";
+  cnEl.textContent=String(cur+1).padStart(2,"0");
+  pbBtn.disabled=cur===0;nb2Btn.disabled=cur===TOTAL-1;
+  if(cur===10){nbBadge.textContent="Live Quiz";nbBadge.classList.add("qm");ctls.classList.add("h");}
+  else{nbBadge.textContent="Presentatie";nbBadge.classList.remove("qm");ctls.classList.remove("h");}
+}
+function go(d){goTo(cur+d);}
+document.addEventListener("keydown",e=>{if(cur===10)return;if(e.key==="ArrowRight"||e.key==="ArrowDown")go(1);if(e.key==="ArrowLeft"||e.key==="ArrowUp")go(-1);});
+let ts=null;
+document.addEventListener("touchstart",e=>{ts=e.touches[0].clientX;});
+document.addEventListener("touchend",e=>{if(!ts||cur===10)return;if(Math.abs(ts-e.changedTouches[0].clientX)>60)go(ts>e.changedTouches[0].clientX?1:-1);ts=null;});
+prog.style.width=(1/TOTAL*100)+"%";
+setTimeout(()=>kh.style.opacity="0",4000);
+// QUIZ
+let CH=null,TI=null;
+const Q={isHost:false,room:null,player:null,players:[],answers:[],answered:false,selected:null,timeLeft:0,totalTime:20};
+function esc(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML;}
+function rc(){return Math.random().toString(36).slice(2,8).toUpperCase();}
+function avc(n){let h=0;for(let c of n)h+=c.charCodeAt(0);return AVC[h%AVC.length];}
+function calcPts(tl,tt){return Math.max(50,Math.round(100+(tl/tt)*900));}
+let _tt;
+function toast(m,t=""){const el=document.getElementById("t2");el.textContent=m;el.className="sh"+(t?" "+t:"");clearTimeout(_tt);_tt=setTimeout(()=>el.className="",3200);}
+function stopTimer(){if(TI){clearInterval(TI);TI=null;}}
+function startTimer(end){stopTimer();TI=setInterval(()=>{const l=Math.max(0,Math.round((new Date(end)-Date.now())/1000));if(l!==Q.timeLeft){Q.timeLeft=l;patchTimer(l);}if(l===0)stopTimer();},200);}
+function buildTimer(el){const r=30,c=2*Math.PI*r,t=Q.timeLeft,tt=Q.totalTime,f=tt>0?t/tt:1,col=t>10?"var(--cy)":t>5?"var(--ye)":"var(--re)";el.innerHTML=`<div style="text-align:center"><svg width="90" height="90" viewBox="0 0 68 68" style="transform:rotate(-90deg)"><circle cx="34" cy="34" r="${r}" stroke="var(--bd2)" stroke-width="4" fill="none"/><circle id="tRing" cx="34" cy="34" r="${r}" stroke="${col}" stroke-width="4" fill="none" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-f)}"/></svg><div id="tNum" style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:${col};margin-top:-6px">${t}</div><div style="font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:2px;color:var(--di);margin-top:4px">SECONDEN</div></div>`;}
+function patchTimer(t){const r=30,c=2*Math.PI*r,col=t>10?"var(--cy)":t>5?"var(--ye)":"var(--re)";const rg=document.getElementById("tRing"),tn=document.getElementById("tNum");if(rg){rg.style.strokeDashoffset=c*(1-(Q.totalTime>0?t/Q.totalTime:1));rg.style.stroke=col;}if(tn){tn.textContent=t;tn.style.color=col;}}
+function progH(qi,n){return Array.from({length:n},(_,i)=>`<div class="qpd ${i<qi?"dn":i===qi?"ac":""}"></div>`).join("");}
+function chipH(p,me){const bg=avc(p.name);return `<div class="pchip"${me?` style="border-color:rgba(0,229,255,.4)"`:""}><div class="pav" style="background:${bg}">${p.name[0].toUpperCase()}</div>${esc(p.name)}${me?`<span style="font-family:'DM Mono',monospace;font-size:.52rem;color:var(--cy);margin-left:3px">jij</span>`:""}</div>`;}
+function lbRowH(p,i,myId){const bg=avc(p.name),medals=["👑","🥈","🥉"],da=Q.answers.find(a=>a.player_id===p.id),delta=da?.points??0,isme=p.id===myId;return `<div class="lbrow"><div class="lbrank">${i<3?medals[i]:i+1}</div><div class="lbnw"><div class="pav" style="background:${bg};width:28px;height:28px;font-size:.72rem;flex-shrink:0">${p.name[0].toUpperCase()}</div><div class="lbname">${esc(p.name)}</div>${isme?`<span class="lbyou">jij</span>`:""}</div><div style="display:flex;align-items:baseline;gap:4px;flex-shrink:0"><div class="lbscore">${p.score}</div>${delta>0?`<div class="lbdelta">+${delta}</div>`:""}</div></div>`;}
+function confetti(){const w=document.createElement("div");w.className="cfw";document.body.appendChild(w);const cols=["#00e5ff","#a855f7","#ff3b6b","#f5c518","#22c55e","#fb923c"];for(let i=0;i<80;i++){const c=document.createElement("div");c.className="cfp";c.style.cssText=`left:${Math.random()*100}%;background:${cols[i%cols.length]};animation-duration:${1.5+Math.random()*2}s;animation-delay:${Math.random()*.8}s;border-radius:${Math.random()>.5?"50%":"2px"}`;w.appendChild(c);}setTimeout(()=>w.remove(),4000);}
+function showQZ(id){document.querySelectorAll(".qstate").forEach(el=>el.classList.remove("active"));const el=document.getElementById("qz-"+id);if(el)el.classList.add("active");const bm={setup:"⚠ Setup",home:"Meedoen","hlobby":"Host — Lobby","hquestion":"Host — Vraag","hresults":"Host — Resultaten","plobby":"Wachten","pquestion":"Jouw beurt!","presults":"Resultaat","lb":"Leaderboard","final":"Eindstand"};const b=document.getElementById("qsb");if(b&&bm[id])b.textContent=bm[id];}
+function patchPL(){["plEl","plEl2"].forEach(id=>{const el=document.getElementById(id);if(!el)return;el.innerHTML=Q.players.length?Q.players.map(p=>chipH(p,p.id===Q.player?.id)).join(""):`<span style="color:var(--di);font-size:.82rem">Wachten op spelers...</span>`;});const c=document.getElementById("pCount");if(c)c.textContent=Q.players.length;const b=document.getElementById("startBtn");if(b)b.disabled=Q.players.length===0;}
+function patchAC(){const el=document.getElementById("ac");if(el)el.textContent=`${Q.answers.length}/${Q.players.length}`;for(let i=0;i<4;i++){const c=document.getElementById("hc_"+i);if(c)c.textContent=Q.answers.filter(a=>a.answer_index===i).length;}}
+function patchLB(){const el=document.getElementById("lblist");if(!el)return;const s=[...Q.players].sort((a,b)=>b.score-a.score);el.innerHTML=s.map((p,i)=>lbRowH(p,i,Q.player?.id)).join("");}
+function subscribe(rid,code){if(CH){db.removeChannel(CH);CH=null;}CH=db.channel("ql_"+code).on("postgres_changes",{event:"*",schema:"public",table:"quiz_rooms",filter:`id=eq.${rid}`},p=>{if(p.new)onRoom(p.new);}).on("postgres_changes",{event:"INSERT",schema:"public",table:"players",filter:`room_id=eq.${rid}`},p=>{if(p.new&&!Q.players.find(x=>x.id===p.new.id)){Q.players=[...Q.players,p.new];patchPL();}}).on("postgres_changes",{event:"UPDATE",schema:"public",table:"players",filter:`room_id=eq.${rid}`},p=>{if(p.new){Q.players=Q.players.map(x=>x.id===p.new.id?p.new:x);if(p.new.id===Q.player?.id)Q.player=p.new;patchLB();}}).on("postgres_changes",{event:"INSERT",schema:"public",table:"answers",filter:`room_id=eq.${rid}`},p=>{if(p.new&&!Q.answers.find(a=>a.id===p.new.id)){Q.answers.push(p.new);patchAC();}}).subscribe(st=>{if(st==="SUBSCRIBED")toast("Live verbonden ✓","ok");});}
+async function onRoom(r){const prev=Q.room;Q.room=r;if(Q.isHost)return;const qi=r.current_question;if(r.status==="question"&&(prev?.status!=="question"||prev?.current_question!==qi)){stopTimer();Q.answers=[];Q.answered=false;Q.selected=null;Q.totalTime=r.questions[qi].time;Q.timeLeft=r.questions[qi].time;renderPQ(qi);startTimer(r.question_end_time);}if(r.status==="show-results"){stopTimer();const{data}=await db.from("answers").select("*").eq("room_id",r.id).eq("question_index",qi);Q.answers=data||[];const{data:me}=await db.from("players").select("*").eq("id",Q.player.id).single();if(me)Q.player=me;renderPRes(qi);}if(r.status==="leaderboard"){await refP();renderLB(qi);}if(r.status==="finished"){await refP();renderFinal();}}
+async function refP(){const{data}=await db.from("players").select("*").eq("room_id",Q.room.id).order("score",{ascending:false});if(data)Q.players=data;}
+function renderHQ(qi){const q=QS[qi];document.getElementById("hqn").textContent=`Vraag ${qi+1}/${QS.length}`;document.getElementById("hqprog").innerHTML=progH(qi,QS.length);document.getElementById("hqtxt").textContent=q.q;document.getElementById("hqans").innerHTML=q.opts.map((o,i)=>`<div class="ha ${i===q.ans?"hok":""}"><div class="hlet">${LTR[i]}</div><div class="hatxt">${esc(o)}</div><div class="hacnt" id="hc_${i}">0</div></div>`).join("");buildTimer(document.getElementById("htw"));showQZ("hquestion");}
+function renderHRes(qi){const q=QS[qi],total=Q.answers.length,isLast=qi>=QS.length-1;document.getElementById("hrtitle").textContent=q.q;document.getElementById("hrbars").innerHTML=q.opts.map((o,i)=>{const cnt=Q.answers.filter(a=>a.answer_index===i).length,pct=total>0?Math.round((cnt/total)*100):0,ok=i===q.ans;return `<div class="sbr"><div class="sbl3" style="color:${ok?"var(--gr)":"var(--mu)"}">${LTR[i]}. ${esc(o)}</div><div class="sbt3"><div class="sbf3" style="width:${pct}%;background:${ok?"var(--gr)":"rgba(255,255,255,.15)"}"></div></div><div class="sbp3">${pct}%</div></div>`;}).join("");document.getElementById("hrstats").textContent=`${Q.answers.filter(a=>a.is_correct).length} van ${total} goed`;const nb=document.getElementById("hrnxt");if(isLast){nb.textContent="🎉 Eindstand";nb.onclick=renderFinalHost;}else{nb.textContent="Volgende →";nb.onclick=qzHostNext;}showQZ("hresults");}
+function renderPQ(qi){const q=QS[qi];document.getElementById("pqn").textContent=`Vraag ${qi+1}/${QS.length}`;document.getElementById("pqprog").innerHTML=progH(qi,QS.length);document.getElementById("pqtxt").textContent=q.q;document.getElementById("pqans").innerHTML=q.opts.map((o,i)=>`<button class="ab2" id="pb_${i}" onclick="pickAns(${i})"><span class="al">${LTR[i]}</span>${esc(o)}</button>`).join("");document.getElementById("pqwait").style.display="none";buildTimer(document.getElementById("ptw"));showQZ("pquestion");}
+function renderPRes(qi){const q=QS[qi],my=Q.answers.find(a=>a.player_id===Q.player?.id),ok=my?.is_correct??false,p=my?.points??0;const el=document.getElementById("prbig");el.className="rbig "+(ok?"g":"b");el.innerHTML=`<span class="ric">${ok?"✅":"❌"}</span><div class="rlbl" style="color:${ok?"var(--gr)":"var(--re)"}">${ok?"Goed!":"Helaas..."}</div>${ok?`<div class="rpts">+${p}</div><div style="color:var(--mu);font-size:.8rem;margin-top:4px">punten</div>`:`<div style="color:var(--mu);font-size:.9rem;margin-top:10px">Juist: <b style="color:var(--gr)">${esc(q.opts[q.ans])}</b></div>`}`;document.getElementById("prtot").textContent=Q.player?.score??0;showQZ("presults");}
+function renderLB(qi){const s=[...Q.players].sort((a,b)=>b.score-a.score),isLast=Q.isHost&&qi>=QS.length-1;document.getElementById("lbtitle").textContent=`🏆 Tussenstand — Na vraag ${qi+1}`;document.getElementById("lblist").innerHTML=s.map((p,i)=>lbRowH(p,i,Q.player?.id)).join("");const hb=document.getElementById("lbhb");if(Q.isHost){hb.style.display="flex";const nb=document.getElementById("lbnxt");if(isLast){nb.textContent="🎉 Eindstand";nb.onclick=renderFinalHost;}else{nb.textContent="Volgende vraag →";nb.onclick=qzHostNext;}}else hb.style.display="none";showQZ("lb");}
+function renderFinal(){const s=[...Q.players].sort((a,b)=>b.score-a.score),w=s[0];document.getElementById("winl").textContent=w?`Winnaar: ${w.name} met ${w.score} punten! 🎉`:"";document.getElementById("finlb").innerHTML=s.slice(0,10).map((p,i)=>lbRowH(p,i,Q.player?.id)).join("");confetti();showQZ("final");}
+async function renderFinalHost(){await refP();const s=[...Q.players].sort((a,b)=>b.score-a.score),w=s[0];document.getElementById("winl").textContent=w?`Winnaar: ${w.name} met ${w.score} punten! 🎉`:"";document.getElementById("finlb").innerHTML=s.slice(0,10).map((p,i)=>lbRowH(p,i,Q.player?.id)).join("");await db.from("quiz_rooms").update({status:"finished"}).eq("id",Q.room.id);confetti();showQZ("final");}
+function qzGoHome(){stopTimer();if(CH){db.removeChannel(CH);CH=null;}Object.assign(Q,{isHost:false,room:null,player:null,players:[],answers:[],answered:false,selected:null,timeLeft:0});showQZ("home");}
+function qzCopy(){if(Q.room?.code){navigator.clipboard.writeText(Q.room.code).then(()=>toast("Gekopieerd: "+Q.room.code,"ok"));}}
+async function qzHost(){const n=(document.getElementById("hName")?.value||"").trim();if(!n){toast("Vul een naam in","er");return;}try{const code=rc();const{data:room,error}=await db.from("quiz_rooms").insert({code,status:"waiting",current_question:-1,questions:QS}).select().single();if(error)throw error;Q.isHost=true;Q.room=room;Q.players=[];document.getElementById("rcEl").textContent=code;subscribe(room.id,code);showQZ("hlobby");}catch(e){toast("Fout: "+e.message,"er");}}
+async function qzJoin(){const n=(document.getElementById("jName")?.value||"").trim();const code=(document.getElementById("jCode")?.value||"").trim().toUpperCase();if(!n){toast("Vul een naam in","er");return;}if(code.length<4){toast("Vul een geldige code in","er");return;}try{const{data:rooms,error:re}=await db.from("quiz_rooms").select("*").eq("code",code).eq("status","waiting");if(re)throw re;if(!rooms?.length){toast("Room niet gevonden of al gestart","er");return;}const room=rooms[0];const{data:player,error:pe}=await db.from("players").insert({room_id:room.id,name:n,score:0}).select().single();if(pe)throw pe;Q.room=room;Q.player=player;Q.isHost=false;const{data:all}=await db.from("players").select("*").eq("room_id",room.id);Q.players=all||[];document.getElementById("myNm").textContent=n;document.getElementById("myRc").textContent=code;patchPL();subscribe(room.id,code);showQZ("plobby");}catch(e){toast("Fout: "+e.message,"er");}}
+async function qzHostStart(){stopTimer();Q.answers=[];Q.answered=false;Q.selected=null;const qi=0,q=QS[qi],endTime=new Date(Date.now()+q.time*1000).toISOString();Q.totalTime=q.time;Q.timeLeft=q.time;await db.from("quiz_rooms").update({status:"question",current_question:qi,question_end_time:endTime}).eq("id",Q.room.id);Q.room={...Q.room,status:"question",current_question:qi,question_end_time:endTime};renderHQ(qi);startTimer(endTime);}
+async function qzHostNext(){stopTimer();Q.answers=[];Q.answered=false;Q.selected=null;const qi=(Q.room.current_question||0)+1;if(qi>=QS.length){await renderFinalHost();return;}const q=QS[qi],endTime=new Date(Date.now()+q.time*1000).toISOString();Q.totalTime=q.time;Q.timeLeft=q.time;await db.from("quiz_rooms").update({status:"question",current_question:qi,question_end_time:endTime}).eq("id",Q.room.id);Q.room={...Q.room,status:"question",current_question:qi,question_end_time:endTime};renderHQ(qi);startTimer(endTime);}
+async function qzHostShowRes(){stopTimer();const qi=Q.room.current_question;await db.from("quiz_rooms").update({status:"show-results"}).eq("id",Q.room.id);const{data}=await db.from("answers").select("*").eq("room_id",Q.room.id).eq("question_index",qi);Q.answers=data||[];Q.room={...Q.room,status:"show-results"};for(const ans of Q.answers.filter(a=>a.is_correct)){const pl=Q.players.find(p=>p.id===ans.player_id);if(pl){const ns=(pl.score||0)+ans.points;await db.from("players").update({score:ns}).eq("id",ans.player_id);Q.players=Q.players.map(p=>p.id===ans.player_id?{...p,score:ns}:p);}}renderHRes(qi);}
+async function qzHostLB(){await refP();await db.from("quiz_rooms").update({status:"leaderboard"}).eq("id",Q.room.id);Q.room={...Q.room,status:"leaderboard"};renderLB(Q.room.current_question);}
+async function pickAns(idx){if(Q.answered)return;const q=QS[Q.room.current_question],ok=idx===q.ans,tl=Math.max(0,Math.round((new Date(Q.room.question_end_time)-Date.now())/1000)),p=ok?calcPts(tl,Q.room.questions[Q.room.current_question].time||20):0;Q.answered=true;Q.selected=idx;document.querySelectorAll(".ab2").forEach((b,i)=>{b.classList.add("dis");if(i===idx)b.classList.add("sel");});document.getElementById("pqwait").style.display="flex";const{error}=await db.from("answers").insert({room_id:Q.room.id,player_id:Q.player.id,question_index:Q.room.current_question,answer_index:idx,is_correct:ok,points:p});if(error)toast("Fout: "+error.message,"er");}
+(async()=>{try{const{error}=await db.from("quiz_rooms").select("id").limit(1);if(error&&(error.code==="42P01"||error.message?.includes("does not exist"))){showQZ("setup");return;}showQZ("home");}catch(e){showQZ("home");}})();
+</script>
+</body>
+</html>
